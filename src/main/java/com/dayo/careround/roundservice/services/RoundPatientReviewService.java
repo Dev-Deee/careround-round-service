@@ -1,14 +1,17 @@
 package com.dayo.careround.roundservice.services;
 
 import com.dayo.careround.roundservice.data.models.EmergencyEpisode;
+import com.dayo.careround.roundservice.data.models.Round;
 import com.dayo.careround.roundservice.data.models.RoundPatientReview;
 import com.dayo.careround.roundservice.data.models.enums.RoundPatientReviewState;
 import com.dayo.careround.roundservice.data.repositories.EmergencyEpisodeRepository;
 import com.dayo.careround.roundservice.data.repositories.RoundPatientReviewRepository;
+import com.dayo.careround.roundservice.data.repositories.RoundRepository;
 import com.dayo.careround.roundservice.dto.request.ResolveReviewRequest;
 import com.dayo.careround.roundservice.dto.response.RoundPatientReviewResponse;
 import com.dayo.careround.roundservice.exception.ReviewNotFoundException;
 import com.dayo.careround.roundservice.exception.ReviewNotResolvableException;
+import com.dayo.careround.roundservice.exception.RoundNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,14 @@ public class RoundPatientReviewService {
     private final RoundPatientReviewRepository reviewRepository;
     private final EmergencyEpisodeRepository emergencyEpisodeRepository;
     private final RoundService roundService;
+    private final RoundRepository roundRepository;
+
+    public List<RoundPatientReviewResponse> getByRoundPublicId(UUID roundPublicId) {
+        Round round = roundRepository.findByPublicId(roundPublicId)
+                .orElseThrow(() -> new RoundNotFoundException("No round with that public id"));
+        return getByRound(round.getId());
+    }
+
 
     public List<RoundPatientReviewResponse> getByRound(UUID roundId) {
         return reviewRepository.findByRoundId(roundId).stream()
