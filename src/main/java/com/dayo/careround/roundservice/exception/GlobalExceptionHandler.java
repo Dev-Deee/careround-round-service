@@ -46,6 +46,16 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
     }
 
+    @ExceptionHandler(NoteNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoteNotFound(NoteNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(NoteAlreadyCommittedException.class)
+    public ResponseEntity<Map<String, Object>> handleNoteAlreadyCommitted(NoteAlreadyCommittedException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of(
                 "status", status.value(),
