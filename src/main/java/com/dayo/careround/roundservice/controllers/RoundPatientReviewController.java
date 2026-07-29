@@ -21,8 +21,8 @@ public class RoundPatientReviewController {
     private final RoundPatientReviewService reviewService;
 
     @GetMapping
-    public ResponseEntity<List<RoundPatientReviewResponse>> getByRound(@RequestParam UUID roundId) {
-        return ResponseEntity.ok(reviewService.getByRound(roundId));
+    public ResponseEntity<List<RoundPatientReviewResponse>> getByRound(@RequestParam UUID roundPublicId) {
+        return ResponseEntity.ok(reviewService.getByRoundPublicId(roundPublicId));
     }
 
     @PostMapping("/{reviewId}/acknowledge-tasks")

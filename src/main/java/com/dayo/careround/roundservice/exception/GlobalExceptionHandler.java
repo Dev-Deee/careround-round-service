@@ -56,6 +56,21 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(EmergencyEpisodeNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEmergencyEpisodeNotFound(EmergencyEpisodeNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateEmergencyException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateEmergency(DuplicateEmergencyException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(EmergencyAlreadyActiveException.class)
+    public ResponseEntity<Map<String, Object>> handleEmergencyAlreadyActive(EmergencyAlreadyActiveException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of(
                 "status", status.value(),
