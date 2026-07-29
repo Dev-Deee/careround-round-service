@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,7 @@ public class EmergencyEpisodeController {
     private final EmergencyEpisodeService emergencyEpisodeService;
 
     @PostMapping
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
     public ResponseEntity<EmergencyEpisodeResponse> declare(
             @Valid @RequestBody DeclareEmergencyRequest request,
             @AuthenticationPrincipal CareRoundPrincipal principal) {
@@ -29,6 +31,7 @@ public class EmergencyEpisodeController {
     }
 
     @PostMapping("/{episodeId}/resolve")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
     public ResponseEntity<EmergencyEpisodeResponse> resolve(@PathVariable UUID episodeId) {
         return ResponseEntity.ok(emergencyEpisodeService.resolve(episodeId));
     }

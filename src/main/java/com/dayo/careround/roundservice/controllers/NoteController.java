@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +26,7 @@ public class NoteController {
     private final NoteService noteService;
 
     @PostMapping
+    @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<NoteResponse> create(
             @Valid @RequestBody CreateNoteRequest request,
             @AuthenticationPrincipal CareRoundPrincipal principal) {
@@ -32,6 +34,7 @@ public class NoteController {
     }
 
     @PutMapping("/{noteId}")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<NoteResponse> updateDraft(
             @PathVariable UUID noteId,
             @Valid @RequestBody UpdateNoteContentRequest request) {
@@ -39,6 +42,7 @@ public class NoteController {
     }
 
     @PostMapping("/{noteId}/commit")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<NoteResponse> commit(
             @PathVariable UUID noteId,
             @RequestParam(required = false) UUID reviewId) {
@@ -46,6 +50,7 @@ public class NoteController {
     }
 
     @PostMapping("/{noteId}/addenda")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<NoteAddendumResponse> addAddendum(
             @PathVariable UUID noteId,
             @Valid @RequestBody AddNoteAddendumRequest request,
