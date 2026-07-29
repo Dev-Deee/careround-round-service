@@ -7,6 +7,7 @@ import com.dayo.careround.roundservice.services.RoundPatientReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,12 +27,14 @@ public class RoundPatientReviewController {
     }
 
     @PostMapping("/{reviewId}/acknowledge-tasks")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
     public ResponseEntity<Void> acknowledgeTasks(@PathVariable UUID reviewId) {
         reviewService.acknowledgeTasks(reviewId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{reviewId}/resolve")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
     public ResponseEntity<RoundPatientReviewResponse> resolve(
             @PathVariable UUID reviewId,
             @Valid @RequestBody ResolveReviewRequest request,

@@ -8,7 +8,9 @@ import com.dayo.careround.roundservice.data.repositories.RoundPatientReviewRepos
 import com.dayo.careround.roundservice.data.repositories.RoundRepository;
 import com.dayo.careround.roundservice.dto.request.CreateRoundRequest;
 import com.dayo.careround.roundservice.dto.response.RoundResponse;
+import com.dayo.careround.roundservice.exception.PatientNotFoundException;
 import com.dayo.careround.roundservice.exception.RoundNotFoundException;
+import com.dayo.careround.roundservice.grpc.PatientVerificationClient;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,9 +24,16 @@ public class RoundService {
 
     private final RoundRepository roundRepository;
     private final RoundPatientReviewRepository reviewRepository;
+    private final PatientVerificationClient patientVerificationClient;
 
     @Transactional
     public RoundResponse create(CreateRoundRequest request) {
+        for (UUID patientId : request.patientIds()) {
+            if (!patientVerificationClient.patientExists(patientId)) {
+                throw new PatientNotFoundException("No patient with id " + patientId + " exists");
+            }
+        }
+
         Round round = new Round();
         round.setWardId(request.wardId());
         round.setStatus(RoundStatus.IN_PROGRESS);
@@ -59,10 +68,10 @@ public class RoundService {
         if (round.getStatus() == RoundStatus.COMPLETED) return;
 
         List<RoundPatientReview> reviews = reviewRepository.findByRoundId(roundId);
-        boolean allTerminal = reviews.stream().allMatch(r ->
-                r.getState() == RoundPatientReviewState.RESOLVED
-                        || r.getState() == RoundPatientReviewState.CARRIED_FORWARD
-                        || r.getState() == RoundPatientReviewState.DISCHARGED);
+        boolean allTerminal = reviews.stream().allMatch(review ->
+                review.getState() == RoundPatientReviewState.RESOLVED
+                        || review.getState() == RoundPatientReviewState.CARRIED_FORWARD
+                        || review.getState() == RoundPatientReviewState.DISCHARGED);
 
         if (allTerminal && !reviews.isEmpty()) {
             round.setStatus(RoundStatus.COMPLETED);

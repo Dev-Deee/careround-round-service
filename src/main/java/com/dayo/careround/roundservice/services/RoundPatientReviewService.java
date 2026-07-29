@@ -4,6 +4,7 @@ import com.dayo.careround.roundservice.data.models.EmergencyEpisode;
 import com.dayo.careround.roundservice.data.models.Round;
 import com.dayo.careround.roundservice.data.models.RoundPatientReview;
 import com.dayo.careround.roundservice.data.models.enums.RoundPatientReviewState;
+import com.dayo.careround.roundservice.data.models.enums.RoundStatus;
 import com.dayo.careround.roundservice.data.repositories.EmergencyEpisodeRepository;
 import com.dayo.careround.roundservice.data.repositories.RoundPatientReviewRepository;
 import com.dayo.careround.roundservice.data.repositories.RoundRepository;
@@ -91,7 +92,8 @@ public class RoundPatientReviewService {
      */
     @Transactional
     public void suspendForEmergency(UUID patientId) {
-        reviewRepository.findByPatientIdAndState(patientId, RoundPatientReviewState.PENDING)
+        reviewRepository.findByPatientIdAndState(patientId, RoundPatientReviewState.PENDING).stream()
+                .filter(this::isInActiveRound)
                 .forEach(review -> {
                     review.setState(RoundPatientReviewState.SUSPENDED);
                     reviewRepository.save(review);
@@ -103,7 +105,8 @@ public class RoundPatientReviewService {
      */
     @Transactional
     public void reopenAfterStabilization(UUID patientId) {
-        reviewRepository.findByPatientIdAndState(patientId, RoundPatientReviewState.SUSPENDED)
+        reviewRepository.findByPatientIdAndState(patientId, RoundPatientReviewState.SUSPENDED).stream()
+                .filter(this::isInActiveRound)
                 .forEach(review -> {
                     review.setState(RoundPatientReviewState.PENDING);
                     reviewRepository.save(review);
@@ -115,7 +118,8 @@ public class RoundPatientReviewService {
      */
     @Transactional
     public void closeForDischarge(UUID patientId) {
-        reviewRepository.findByPatientIdAndState(patientId, RoundPatientReviewState.PENDING)
+        reviewRepository.findByPatientIdAndState(patientId, RoundPatientReviewState.PENDING).stream()
+                .filter(this::isInActiveRound)
                 .forEach(review -> {
                     review.setState(RoundPatientReviewState.DISCHARGED);
                     reviewRepository.save(review);
@@ -159,5 +163,11 @@ public class RoundPatientReviewService {
                 review.getState(), review.isTasksAcknowledged(), review.getClinicalNoteId(),
                 review.getStatusSummary(), review.getResolvedByDoctorId(), review.getReviewedAt()
         );
+    }
+
+    private boolean isInActiveRound(RoundPatientReview review) {
+        return roundRepository.findById(review.getRoundId())
+                .map(round -> round.getStatus() == RoundStatus.IN_PROGRESS)
+                .orElse(false);
     }
 }
