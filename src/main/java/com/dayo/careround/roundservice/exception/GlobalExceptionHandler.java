@@ -87,6 +87,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(OutboxEventNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleOutboxEventNotFound(OutboxEventNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN, "You do not have permission to perform this action");

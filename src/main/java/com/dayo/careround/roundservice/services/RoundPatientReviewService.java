@@ -1,11 +1,14 @@
 package com.dayo.careround.roundservice.services;
 
 import com.dayo.careround.roundservice.data.models.EmergencyEpisode;
+import com.dayo.careround.roundservice.data.models.OutboxEvent;
 import com.dayo.careround.roundservice.data.models.Round;
 import com.dayo.careround.roundservice.data.models.RoundPatientReview;
+import com.dayo.careround.roundservice.data.models.enums.OutboxStatus;
 import com.dayo.careround.roundservice.data.models.enums.RoundPatientReviewState;
 import com.dayo.careround.roundservice.data.models.enums.RoundStatus;
 import com.dayo.careround.roundservice.data.repositories.EmergencyEpisodeRepository;
+import com.dayo.careround.roundservice.data.repositories.OutboxEventRepository;
 import com.dayo.careround.roundservice.data.repositories.RoundPatientReviewRepository;
 import com.dayo.careround.roundservice.data.repositories.RoundRepository;
 import com.dayo.careround.roundservice.dto.request.ResolveReviewRequest;
@@ -13,23 +16,29 @@ import com.dayo.careround.roundservice.dto.response.RoundPatientReviewResponse;
 import com.dayo.careround.roundservice.exception.ReviewNotFoundException;
 import com.dayo.careround.roundservice.exception.ReviewNotResolvableException;
 import com.dayo.careround.roundservice.exception.RoundNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RoundPatientReviewService {
 
     private final RoundPatientReviewRepository reviewRepository;
     private final EmergencyEpisodeRepository emergencyEpisodeRepository;
     private final RoundService roundService;
     private final RoundRepository roundRepository;
-
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
     public List<RoundPatientReviewResponse> getByRoundPublicId(UUID roundPublicId) {
         Round round = roundRepository.findByPublicId(roundPublicId)
                 .orElseThrow(() -> new RoundNotFoundException("No round with that public id"));
@@ -81,7 +90,7 @@ public class RoundPatientReviewService {
         review.setReviewedAt(Instant.now());
         reviewRepository.save(review);
 
-        // TODO: emit PATIENT_REVIEW_COMPLETED via outbox — notification-service consumes this later
+        publishReviewCompleted(review);
 
         roundService.recheckCompletion(review.getRoundId());
         return toResponse(review);
@@ -155,6 +164,27 @@ public class RoundPatientReviewService {
     private RoundPatientReview findOrThrow(UUID reviewId) {
         return reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException("No review with that id"));
+    }
+
+    private void publishReviewCompleted(RoundPatientReview review) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("patientId", review.getPatientId().toString());
+            payload.put("roundId", review.getRoundId().toString());
+            payload.put("statusSummary", review.getStatusSummary());
+            payload.put("resolvedByDoctorId", review.getResolvedByDoctorId().toString());
+
+            OutboxEvent event = new OutboxEvent();
+            event.setIdempotencyKey("review-completed-" + review.getId());
+            event.setEventType("PATIENT_REVIEW_COMPLETED");
+            event.setStatus(OutboxStatus.PENDING);
+            event.setPayload(objectMapper.writeValueAsString(payload));
+            event.setAttempts(0);
+            event.setNextRetryAt(Instant.now());
+            outboxEventRepository.save(event);
+        } catch (Exception e) {
+            log.error("Failed to build PATIENT_REVIEW_COMPLETED outbox event: {}", e.getMessage(), e);
+        }
     }
 
     private RoundPatientReviewResponse toResponse(RoundPatientReview review) {

@@ -8,6 +8,20 @@ option java_multiple_files = true;
 service PatientCensusService {
   rpc GetAdmittedCount (WardCensusRequest) returns (WardCensusResponse);
   rpc PatientExists (PatientExistsRequest) returns (PatientExistsResponse);
+  rpc GetPrimaryNextOfKin (NextOfKinRequest) returns (NextOfKinResponse);
+}
+
+message NextOfKinRequest {
+  string patient_id = 1;
+}
+
+message NextOfKinResponse {
+  bool found = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string phone = 4;
+  string email = 5;
+  string language_preference = 6;
 }
 
 message WardCensusRequest {
