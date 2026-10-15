@@ -16,6 +16,7 @@ import com.dayo.careround.roundservice.dto.response.RoundPatientReviewResponse;
 import com.dayo.careround.roundservice.exception.ReviewNotFoundException;
 import com.dayo.careround.roundservice.exception.ReviewNotResolvableException;
 import com.dayo.careround.roundservice.exception.RoundNotFoundException;
+import com.dayo.careround.roundservice.grpc.CareTaskQueryClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +25,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -39,6 +42,7 @@ public class RoundPatientReviewService {
     private final RoundRepository roundRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final CareTaskQueryClient careTaskQueryClient;
     public List<RoundPatientReviewResponse> getByRoundPublicId(UUID roundPublicId) {
         Round round = roundRepository.findByPublicId(roundPublicId)
                 .orElseThrow(() -> new RoundNotFoundException("No round with that public id"));
@@ -52,8 +56,14 @@ public class RoundPatientReviewService {
                 .toList();
     }
 
+    /**
+     * Acknowledges every care task currently pending for the patient. Tasks created afterwards are
+     * not covered and block resolve until tasks are acknowledged again.
+     */
+    @Transactional
     public void acknowledgeTasks(UUID reviewId) {
         RoundPatientReview review = findOrThrow(reviewId);
+        review.setAcknowledgedTaskIds(new HashSet<>(careTaskQueryClient.getPendingTaskIds(review.getPatientId())));
         review.setTasksAcknowledged(true);
         reviewRepository.save(review);
     }
@@ -65,7 +75,8 @@ public class RoundPatientReviewService {
     }
 
     /**
-     * Three-gate completion: tasks acknowledged + clinical note committed + status summary set.
+     * Three-gate completion: every pending care task acknowledged (FR-1.3a) + clinical note committed
+     * + status summary set.
      * Note commitment itself is verified by the caller (NoteService) before this is invoked —
      * this method assumes clinicalNoteId already points to a COMMITTED note.
      */
@@ -79,6 +90,12 @@ public class RoundPatientReviewService {
         }
         if (!review.isTasksAcknowledged()) {
             throw new ReviewNotResolvableException("Tasks must be acknowledged before resolving");
+        }
+        Set<UUID> unacknowledged = new HashSet<>(careTaskQueryClient.getPendingTaskIds(review.getPatientId()));
+        unacknowledged.removeAll(review.getAcknowledgedTaskIds());
+        if (!unacknowledged.isEmpty()) {
+            throw new ReviewNotResolvableException(unacknowledged.size()
+                    + " pending care task(s) not acknowledged — acknowledge tasks again before resolving: " + unacknowledged);
         }
         if (review.getClinicalNoteId() == null) {
             throw new ReviewNotResolvableException("A committed clinical note is required before resolving");
