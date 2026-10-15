@@ -34,7 +34,7 @@ public class RoundPatientReviewController {
     }
 
     @PostMapping("/{reviewId}/resolve")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
+    @PreAuthorize("hasRole('DOCTOR')") // the resolver is recorded as resolvedByDoctorId, like note commits
     public ResponseEntity<RoundPatientReviewResponse> resolve(
             @PathVariable UUID reviewId,
             @Valid @RequestBody ResolveReviewRequest request,
