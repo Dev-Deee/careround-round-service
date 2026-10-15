@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "2221e0a5-491a-4613-ab5f-005e2059f65b",
+    "_postman_id": "caf4e49a-a119-42c6-9961-804d56f136fb",
     "name": "CareRound - Emergency Flow (Round Service)",
     "description": "Emergency episodes in round-service: declare, one-active-per-patient, resolve (idempotent), negatives.\nEach declaration publishes PATIENT_EMERGENCY_DECLARED through the outbox; notification-service texts the primary next-of-kin.\nSet superAdminPassword in the environment first. Tokens refresh automatically (collection pre-request script).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -845,7 +845,7 @@
       "name": "05 - Negative Cases",
       "item": [
         {
-          "name": "KNOWN BUG - replay the first idempotencyKey after resolution (want 409, round-service returns 500)",
+          "name": "Replay the first idempotencyKey after resolution - already processed (409)",
           "request": {
             "method": "POST",
             "header": [
@@ -882,6 +882,49 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Declare for a patient that does not exist (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nurseAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{roundBaseUrl}}/api/v1/emergencies",
+              "host": [
+                "{{roundBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emergencies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"00000000-0000-0000-0000-0000000000ff\",\n  \"idempotencyKey\": \"unknown-patient-{{runId}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });"
                 ]
               }
             }
