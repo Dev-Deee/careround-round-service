@@ -10,7 +10,10 @@ import com.dayo.careround.roundservice.dto.response.EmergencyEpisodeResponse;
 import com.dayo.careround.roundservice.exception.DuplicateEmergencyException;
 import com.dayo.careround.roundservice.exception.EmergencyAlreadyActiveException;
 import com.dayo.careround.roundservice.exception.EmergencyEpisodeNotFoundException;
+import com.dayo.careround.roundservice.exception.PatientNotFoundException;
+import com.dayo.careround.roundservice.grpc.PatientVerificationClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.grpc.StatusRuntimeException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +35,12 @@ public class EmergencyEpisodeService {
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final PatientVerificationClient patientVerificationClient;
 
     @Transactional
     public EmergencyEpisodeResponse declare(UUID declaredBy, DeclareEmergencyRequest request) {
+        verifyPatientExists(request.patientId());
+
         emergencyEpisodeRepository.findByPatientIdAndResolvedAtIsNull(request.patientId())
                 .ifPresent(existing -> {
                     throw new EmergencyAlreadyActiveException(
@@ -113,5 +119,21 @@ public class EmergencyEpisodeService {
                 episode.getId(), episode.getPatientId(), episode.getDeclaredBy(),
                 episode.getDeclaredAt(), episode.getResolvedAt()
         );
+    }
+
+    // A confirmed unknown patient is rejected. If patient-service cannot answer, the emergency is still
+    // accepted: declaring an emergency must not depend on a lookup service being up.
+    private void verifyPatientExists(UUID patientId) {
+        boolean exists;
+        try {
+            exists = patientVerificationClient.patientExists(patientId);
+        } catch (StatusRuntimeException e) {
+            log.warn("Could not verify patient {} with patient-service ({}) — declaring emergency anyway",
+                    patientId, e.getStatus().getCode());
+            return;
+        }
+        if (!exists) {
+            throw new PatientNotFoundException("No patient with id " + patientId + " exists");
+        }
     }
 }
