@@ -41,13 +41,18 @@ public class EmergencyEpisodeService {
                             "This patient already has an active, unresolved emergency episode");
                 });
 
+        if (emergencyEpisodeRepository.existsByIdempotencyKey(request.idempotencyKey())) {
+            throw new DuplicateEmergencyException("This emergency declaration was already processed");
+        }
+
         EmergencyEpisode episode = new EmergencyEpisode();
         episode.setPatientId(request.patientId());
         episode.setDeclaredBy(declaredBy);
         episode.setIdempotencyKey(request.idempotencyKey());
 
+        // saveAndFlush so a concurrent duplicate's unique-key violation surfaces here, not at commit
         try {
-            emergencyEpisodeRepository.save(episode);
+            emergencyEpisodeRepository.saveAndFlush(episode);
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateEmergencyException("This emergency declaration was already processed");
         }

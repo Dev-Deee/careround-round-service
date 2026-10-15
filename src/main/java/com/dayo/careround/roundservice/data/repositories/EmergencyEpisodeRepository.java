@@ -9,5 +9,7 @@ import java.util.UUID;
 
 public interface EmergencyEpisodeRepository extends JpaRepository<EmergencyEpisode, UUID> {
     Optional<EmergencyEpisode> findByPatientIdAndResolvedAtIsNull(UUID patientId);
+
+    boolean existsByIdempotencyKey(String idempotencyKey);
     List<EmergencyEpisode> findByPatientId(UUID patientId);
 }
