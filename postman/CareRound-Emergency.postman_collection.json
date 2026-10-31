@@ -103,6 +103,51 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create Ward - real ward for this run (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wardBaseUrl}}/api/v1/wards",
+              "host": [
+                "{{wardBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wards"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Ward {{runId}}\",\n  \"capacity\": 20\n}"
+            },
+            "description": "Patient admission and round creation verify the ward with ward-service (404 for an unknown ward), so each run creates a real ward and uses its publicId."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Capture wardPublicId', function () { pm.environment.set('wardPublicId', pm.response.json().publicId); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -701,6 +746,42 @@
               }
             }
           ]
+        },
+        {
+          "name": "MANUAL CHECK - PATIENT_EMERGENCY_RESOLVED outbox row and topic",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationBaseUrl}}/actuator/health",
+              "host": [
+                "{{notificationBaseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "round-service writes PATIENT_EMERGENCY_RESOLVED to its outbox in the resolve transaction (key emergency-resolved-{{emergencyEpisodeId}}).\nPayload: {patientId, wardId, resolvedBy, resolvedAt, occurredAt}. wardId is the ward stored at declare time (null if patient-service was down then).\nThe declared event now also carries wardId and occurredAt. 'Resolve again' publishes nothing: there is exactly one resolved row per episode.\nOutbox (status PENDING -> SENT within a few seconds):\ndocker exec -it careround-postgres psql -U postgres -d careround_round_db -c \"SELECT idempotency_key, event_type, status, payload FROM outbox_events WHERE idempotency_key LIKE 'emergency-%' ORDER BY created_at DESC LIMIT 4;\"\nTopic (key | value):\ndocker exec careround-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic PATIENT_EMERGENCY_RESOLVED --from-beginning --timeout-ms 5000 --formatter-property print.key=true --formatter-property key.separator='|'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// round-service writes PATIENT_EMERGENCY_RESOLVED to its outbox in the resolve transaction (key emergency-resolved-{{emergencyEpisodeId}}).",
+                  "// Payload: {patientId, wardId, resolvedBy, resolvedAt, occurredAt}. wardId is the ward stored at declare time (null if patient-service was down then).",
+                  "// The declared event now also carries wardId and occurredAt. 'Resolve again' publishes nothing: there is exactly one resolved row per episode.",
+                  "// Outbox (status PENDING -> SENT within a few seconds):",
+                  "// docker exec -it careround-postgres psql -U postgres -d careround_round_db -c \"SELECT idempotency_key, event_type, status, payload FROM outbox_events WHERE idempotency_key LIKE 'emergency-%' ORDER BY created_at DESC LIMIT 4;\"",
+                  "// Topic (key | value):",
+                  "// docker exec careround-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic PATIENT_EMERGENCY_RESOLVED --from-beginning --timeout-ms 5000 --formatter-property print.key=true --formatter-property key.separator='|'"
+                ]
+              }
+            }
+          ],
+          "response": []
         },
         {
           "name": "Get active emergency - none (404)",
