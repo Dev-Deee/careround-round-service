@@ -32,8 +32,10 @@ public class EmergencyEpisodeController {
 
     @PostMapping("/{episodeId}/resolve")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('NURSE')")
-    public ResponseEntity<EmergencyEpisodeResponse> resolve(@PathVariable UUID episodeId) {
-        return ResponseEntity.ok(emergencyEpisodeService.resolve(episodeId));
+    public ResponseEntity<EmergencyEpisodeResponse> resolve(
+            @PathVariable UUID episodeId,
+            @AuthenticationPrincipal CareRoundPrincipal principal) {
+        return ResponseEntity.ok(emergencyEpisodeService.resolve(episodeId, principal.userId()));
     }
 
     @GetMapping("/active")

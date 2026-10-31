@@ -190,6 +190,10 @@ public class RoundPatientReviewService {
             payload.put("roundId", review.getRoundId().toString());
             payload.put("statusSummary", review.getStatusSummary());
             payload.put("resolvedByDoctorId", review.getResolvedByDoctorId().toString());
+            payload.put("wardId", roundRepository.findById(review.getRoundId())
+                    .map(round -> round.getWardId().toString())
+                    .orElse(null));
+            payload.put("occurredAt", (review.getReviewedAt() != null ? review.getReviewedAt() : Instant.now()).toString());
 
             OutboxEvent event = new OutboxEvent();
             event.setIdempotencyKey("review-completed-" + review.getId());

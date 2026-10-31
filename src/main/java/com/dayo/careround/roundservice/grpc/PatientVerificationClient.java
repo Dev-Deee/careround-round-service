@@ -20,9 +20,14 @@ public class PatientVerificationClient {
     private long deadlineMs;
 
     public boolean patientExists(UUID patientId) {
+        return lookup(patientId).getExists();
+    }
+
+    // exists plus the patient's ward_id (empty when the patient does not exist).
+    public PatientExistsResponse lookup(UUID patientId) {
         PatientExistsRequest request = PatientExistsRequest.newBuilder()
                 .setPatientId(patientId.toString())
                 .build();
-        return patientStub.withDeadlineAfter(deadlineMs, TimeUnit.MILLISECONDS).patientExists(request).getExists();
+        return patientStub.withDeadlineAfter(deadlineMs, TimeUnit.MILLISECONDS).patientExists(request);
     }
 }

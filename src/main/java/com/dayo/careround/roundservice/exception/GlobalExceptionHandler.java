@@ -98,6 +98,16 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, message);
     }
 
+    @ExceptionHandler(WardNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleWardNotFound(WardNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(WardServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleWardServiceUnavailable(WardServiceUnavailableException ex) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
     @ExceptionHandler(PatientNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handlePatientNotFound(PatientNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
