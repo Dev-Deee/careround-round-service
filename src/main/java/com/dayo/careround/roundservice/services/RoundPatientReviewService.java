@@ -120,6 +120,9 @@ public class RoundPatientReviewService {
         review.setResolvedByDoctorId(doctorId);
         review.setReviewedAt(Instant.now());
         reviewRepository.save(review);
+        roundRepository.findById(review.getRoundId())
+                .filter(round -> round.getConductedBy() == null)
+                .ifPresent(round -> { round.setConductedBy(doctorId); roundRepository.save(round); });
 
         publishReviewCompleted(review);
 

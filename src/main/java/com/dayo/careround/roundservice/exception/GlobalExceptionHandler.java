@@ -115,6 +115,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, message);
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(WardNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleWardNotFound(WardNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
