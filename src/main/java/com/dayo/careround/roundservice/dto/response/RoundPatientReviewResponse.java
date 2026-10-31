@@ -7,12 +7,13 @@ import java.util.UUID;
 
 public record RoundPatientReviewResponse(
         UUID id,
-        UUID roundId,
+        UUID roundId, // deprecated: the round's internal id; use roundPublicId
         UUID patientId,
         RoundPatientReviewState state,
         boolean tasksAcknowledged,
         UUID clinicalNoteId,
         String statusSummary,
         UUID resolvedByDoctorId,
-        Instant reviewedAt
+        Instant reviewedAt,
+        UUID roundPublicId
 ) {}

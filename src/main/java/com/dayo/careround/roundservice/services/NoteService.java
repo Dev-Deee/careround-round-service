@@ -5,6 +5,7 @@ import com.dayo.careround.roundservice.data.models.NoteAddendum;
 import com.dayo.careround.roundservice.data.models.enums.NoteStatus;
 import com.dayo.careround.roundservice.data.repositories.NoteAddendumRepository;
 import com.dayo.careround.roundservice.data.repositories.NoteRepository;
+import com.dayo.careround.roundservice.data.repositories.RoundRepository;
 import com.dayo.careround.roundservice.dto.request.AddNoteAddendumRequest;
 import com.dayo.careround.roundservice.dto.request.CreateNoteRequest;
 import com.dayo.careround.roundservice.dto.request.UpdateNoteContentRequest;
@@ -12,6 +13,7 @@ import com.dayo.careround.roundservice.dto.response.NoteAddendumResponse;
 import com.dayo.careround.roundservice.dto.response.NoteResponse;
 import com.dayo.careround.roundservice.exception.NoteAlreadyCommittedException;
 import com.dayo.careround.roundservice.exception.NoteNotFoundException;
+import com.dayo.careround.roundservice.exception.RoundNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -27,9 +29,14 @@ public class NoteService {
     private final NoteRepository noteRepository;
     private final NoteAddendumRepository noteAddendumRepository;
     private final RoundPatientReviewService reviewService;
+    private final RoundRepository roundRepository;
 
     @Transactional
     public NoteResponse create(UUID authorId, CreateNoteRequest request) {
+        // roundId is the round's publicId (the id clients see); an unknown one is rejected rather than stored.
+        if (request.roundId() != null && roundRepository.findByPublicId(request.roundId()).isEmpty()) {
+            throw new RoundNotFoundException("No round with that id");
+        }
         Note note = new Note();
         note.setPatientId(request.patientId());
         note.setContext(request.context());
