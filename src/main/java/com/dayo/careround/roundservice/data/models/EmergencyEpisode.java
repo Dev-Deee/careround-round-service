@@ -31,6 +31,9 @@ public class EmergencyEpisode {
     @Column
     private Instant resolvedAt;
 
+    @Column
+    private UUID resolvedBy;
+
     @Column(nullable = false, unique = true)
     private String idempotencyKey;
 }

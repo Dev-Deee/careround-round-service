@@ -73,7 +73,7 @@ public class EmergencyEpisodeService {
     }
 
     @Transactional
-    public EmergencyEpisodeResponse resolve(UUID episodeId) {
+    public EmergencyEpisodeResponse resolve(UUID episodeId, UUID resolvedBy) {
         EmergencyEpisode episode = emergencyEpisodeRepository.findById(episodeId)
                 .orElseThrow(() -> new EmergencyEpisodeNotFoundException("No emergency episode with that id"));
 
@@ -82,7 +82,10 @@ public class EmergencyEpisodeService {
         }
 
         episode.setResolvedAt(Instant.now());
+        episode.setResolvedBy(resolvedBy);
         emergencyEpisodeRepository.save(episode);
+
+        publishEmergencyResolved(episode);
 
         reviewService.reopenAfterStabilization(episode.getPatientId());
 
@@ -115,6 +118,30 @@ public class EmergencyEpisodeService {
             outboxEventRepository.save(event);
         } catch (Exception e) {
             log.error("Failed to build PATIENT_EMERGENCY_DECLARED outbox event: {}", e.getMessage(), e);
+        }
+    }
+
+    // Same transaction as the resolve, so the event exists if and only if the resolve committed.
+    // wardId is the one captured at declare time (may be null if the ward was unknown then).
+    private void publishEmergencyResolved(EmergencyEpisode episode) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("patientId", episode.getPatientId().toString());
+            payload.put("wardId", episode.getWardId() != null ? episode.getWardId().toString() : null);
+            payload.put("resolvedBy", episode.getResolvedBy().toString());
+            payload.put("resolvedAt", episode.getResolvedAt().toString());
+            payload.put("occurredAt", episode.getResolvedAt().toString());
+
+            OutboxEvent event = new OutboxEvent();
+            event.setIdempotencyKey("emergency-resolved-" + episode.getId());
+            event.setEventType("PATIENT_EMERGENCY_RESOLVED");
+            event.setStatus(OutboxStatus.PENDING);
+            event.setPayload(objectMapper.writeValueAsString(payload));
+            event.setAttempts(0);
+            event.setNextRetryAt(Instant.now());
+            outboxEventRepository.save(event);
+        } catch (Exception e) {
+            log.error("Failed to build PATIENT_EMERGENCY_RESOLVED outbox event: {}", e.getMessage(), e);
         }
     }
 
