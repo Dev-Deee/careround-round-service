@@ -100,7 +100,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(PatientNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handlePatientNotFound(PatientNotFoundException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(NotAuthorizedToEndRoundException.class)
