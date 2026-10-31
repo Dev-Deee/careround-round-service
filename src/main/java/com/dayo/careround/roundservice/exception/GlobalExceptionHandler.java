@@ -23,6 +23,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    @ExceptionHandler(CareTaskServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleCareTaskServiceUnavailable(CareTaskServiceUnavailableException ex) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
     @ExceptionHandler(ReviewNotResolvableException.class)
     public ResponseEntity<Map<String, Object>> handleReviewNotResolvable(ReviewNotResolvableException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
