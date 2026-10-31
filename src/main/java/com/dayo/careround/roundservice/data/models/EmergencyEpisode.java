@@ -21,6 +21,10 @@ public class EmergencyEpisode {
     @Column(nullable = false)
     private UUID declaredBy;
 
+    // Patient's ward at declare time, from patient-service. Null if patient-service could not be reached.
+    @Column
+    private UUID wardId;
+
     @Column(nullable = false, updatable = false)
     private Instant declaredAt = Instant.now();
 

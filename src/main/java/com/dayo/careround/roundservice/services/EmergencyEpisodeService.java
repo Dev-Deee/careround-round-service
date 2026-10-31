@@ -1,5 +1,6 @@
 package com.dayo.careround.roundservice.services;
 
+import com.dayo.careround.patientservice.grpc.PatientExistsResponse;
 import com.dayo.careround.roundservice.data.models.EmergencyEpisode;
 import com.dayo.careround.roundservice.data.models.OutboxEvent;
 import com.dayo.careround.roundservice.data.models.enums.OutboxStatus;
@@ -39,7 +40,7 @@ public class EmergencyEpisodeService {
 
     @Transactional
     public EmergencyEpisodeResponse declare(UUID declaredBy, DeclareEmergencyRequest request) {
-        verifyPatientExists(request.patientId());
+        UUID wardId = verifyPatientAndGetWard(request.patientId());
 
         emergencyEpisodeRepository.findByPatientIdAndResolvedAtIsNull(request.patientId())
                 .ifPresent(existing -> {
@@ -54,6 +55,7 @@ public class EmergencyEpisodeService {
         EmergencyEpisode episode = new EmergencyEpisode();
         episode.setPatientId(request.patientId());
         episode.setDeclaredBy(declaredBy);
+        episode.setWardId(wardId);
         episode.setIdempotencyKey(request.idempotencyKey());
 
         // saveAndFlush so a concurrent duplicate's unique-key violation surfaces here, not at commit
@@ -98,8 +100,10 @@ public class EmergencyEpisodeService {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("patientId", episode.getPatientId().toString());
+            payload.put("wardId", episode.getWardId() != null ? episode.getWardId().toString() : null);
             payload.put("declaredBy", episode.getDeclaredBy().toString());
             payload.put("declaredAt", episode.getDeclaredAt().toString());
+            payload.put("occurredAt", episode.getDeclaredAt().toString());
 
             OutboxEvent event = new OutboxEvent();
             event.setIdempotencyKey("emergency-declared-" + episode.getId());
@@ -122,18 +126,24 @@ public class EmergencyEpisodeService {
     }
 
     // A confirmed unknown patient is rejected. If patient-service cannot answer, the emergency is still
-    // accepted: declaring an emergency must not depend on a lookup service being up.
-    private void verifyPatientExists(UUID patientId) {
-        boolean exists;
+    // accepted: declaring an emergency must not depend on a lookup service being up. The ward is then
+    // unknown (null) and the event carries wardId=null for notification-service to resolve.
+    private UUID verifyPatientAndGetWard(UUID patientId) {
+        PatientExistsResponse reply;
         try {
-            exists = patientVerificationClient.patientExists(patientId);
+            reply = patientVerificationClient.lookup(patientId);
         } catch (StatusRuntimeException e) {
-            log.warn("Could not verify patient {} with patient-service ({}) — declaring emergency anyway",
+            log.warn("Could not verify patient {} with patient-service ({}) — declaring emergency anyway, wardId unknown",
                     patientId, e.getStatus().getCode());
-            return;
+            return null;
         }
-        if (!exists) {
+        if (!reply.getExists()) {
             throw new PatientNotFoundException("No patient with id " + patientId + " exists");
         }
+        if (reply.getWardId().isEmpty()) {
+            log.warn("patient-service returned no ward for patient {} — wardId unknown", patientId);
+            return null;
+        }
+        return UUID.fromString(reply.getWardId());
     }
 }
