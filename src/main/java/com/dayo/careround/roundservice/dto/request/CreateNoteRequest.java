@@ -9,6 +9,6 @@ import java.util.UUID;
 public record CreateNoteRequest(
         @NotNull UUID patientId,
         @NotNull NoteContext context,
-        UUID roundId, // nullable — only required for context = ROUND
+        UUID roundId, // the round's publicId; nullable — only required for context = ROUND
         @NotBlank String content
 ) {}

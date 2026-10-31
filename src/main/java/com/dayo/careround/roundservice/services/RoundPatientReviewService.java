@@ -120,6 +120,9 @@ public class RoundPatientReviewService {
         review.setResolvedByDoctorId(doctorId);
         review.setReviewedAt(Instant.now());
         reviewRepository.save(review);
+        roundRepository.findById(review.getRoundId())
+                .filter(round -> round.getConductedBy() == null)
+                .ifPresent(round -> { round.setConductedBy(doctorId); roundRepository.save(round); });
 
         publishReviewCompleted(review);
 
@@ -204,9 +207,9 @@ public class RoundPatientReviewService {
             payload.put("roundId", review.getRoundId().toString());
             payload.put("statusSummary", review.getStatusSummary());
             payload.put("resolvedByDoctorId", review.getResolvedByDoctorId().toString());
-            payload.put("wardId", roundRepository.findById(review.getRoundId())
-                    .map(round -> round.getWardId().toString())
-                    .orElse(null));
+            Round round = roundRepository.findById(review.getRoundId()).orElse(null);
+            payload.put("wardId", round != null ? round.getWardId().toString() : null);
+            payload.put("roundPublicId", round != null ? round.getPublicId().toString() : null);
             payload.put("occurredAt", (review.getReviewedAt() != null ? review.getReviewedAt() : Instant.now()).toString());
 
             OutboxEvent event = new OutboxEvent();
@@ -226,7 +229,8 @@ public class RoundPatientReviewService {
         return new RoundPatientReviewResponse(
                 review.getId(), review.getRoundId(), review.getPatientId(),
                 review.getState(), review.isTasksAcknowledged(), review.getClinicalNoteId(),
-                review.getStatusSummary(), review.getResolvedByDoctorId(), review.getReviewedAt()
+                review.getStatusSummary(), review.getResolvedByDoctorId(), review.getReviewedAt(),
+                roundRepository.findById(review.getRoundId()).map(Round::getPublicId).orElse(null)
         );
     }
 

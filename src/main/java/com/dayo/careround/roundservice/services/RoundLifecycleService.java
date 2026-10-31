@@ -14,6 +14,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ public class RoundLifecycleService {
     private final RoundPatientReviewRepository reviewRepository;
     private final RoundPatientReviewService reviewService;
     private final ChargeVerificationClient chargeVerificationClient;
+    private final RoundService roundService;
 
     /**
      * Explicitly ends a round. Any SUSPENDED review is carried forward into a
@@ -51,6 +53,9 @@ public class RoundLifecycleService {
             Round newRound = new Round();
             newRound.setWardId(round.getWardId());
             newRound.setStatus(RoundStatus.IN_PROGRESS);
+            newRound.setCreatedBy(callerUserId);
+            newRound.setConductedBy(round.getConductedBy()); // carried-forward reviews stay with the same doctor
+            newRound.setStartedAt(Instant.now());
             roundRepository.save(newRound);
 
             for (RoundPatientReview review : suspended) {
@@ -59,8 +64,9 @@ public class RoundLifecycleService {
         }
 
         round.setStatus(RoundStatus.COMPLETED);
+        round.setEndedAt(Instant.now());
         roundRepository.save(round);
 
-        return new RoundResponse(round.getPublicId(), round.getWardId(), round.getStatus());
+        return roundService.toResponse(round);
     }
 }
