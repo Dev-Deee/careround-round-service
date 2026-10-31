@@ -37,16 +37,18 @@ public class NoteController {
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<NoteResponse> updateDraft(
             @PathVariable UUID noteId,
-            @Valid @RequestBody UpdateNoteContentRequest request) {
-        return ResponseEntity.ok(noteService.updateDraft(noteId, request));
+            @Valid @RequestBody UpdateNoteContentRequest request,
+            @AuthenticationPrincipal CareRoundPrincipal principal) {
+        return ResponseEntity.ok(noteService.updateDraft(noteId, principal.userId(), request));
     }
 
     @PostMapping("/{noteId}/commit")
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<NoteResponse> commit(
             @PathVariable UUID noteId,
-            @RequestParam(required = false) UUID reviewId) {
-        return ResponseEntity.ok(noteService.commit(noteId, reviewId));
+            @RequestParam(required = false) UUID reviewId,
+            @AuthenticationPrincipal CareRoundPrincipal principal) {
+        return ResponseEntity.ok(noteService.commit(noteId, principal.userId(), reviewId));
     }
 
     @PostMapping("/{noteId}/addenda")
@@ -60,8 +62,9 @@ public class NoteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<NoteResponse>> getByPatient(@RequestParam UUID patientId) {
-        return ResponseEntity.ok(noteService.getByPatient(patientId));
+    public ResponseEntity<List<NoteResponse>> getByPatient(@RequestParam UUID patientId,
+                                                           @AuthenticationPrincipal CareRoundPrincipal principal) {
+        return ResponseEntity.ok(noteService.getByPatient(patientId, principal.userId()));
     }
 
     @GetMapping("/{noteId}/addenda")
