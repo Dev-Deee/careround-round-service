@@ -84,6 +84,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    @ExceptionHandler(NoteReviewMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleNoteReviewMismatch(NoteReviewMismatchException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     @ExceptionHandler(NoteAlreadyCommittedException.class)
     public ResponseEntity<Map<String, Object>> handleNoteAlreadyCommitted(NoteAlreadyCommittedException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());

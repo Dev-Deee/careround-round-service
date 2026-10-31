@@ -19,6 +19,9 @@ import com.dayo.careround.roundservice.exception.RoundNotFoundException;
 import com.dayo.careround.roundservice.grpc.CareTaskQueryClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import com.dayo.careround.roundservice.data.models.Note;
+import com.dayo.careround.roundservice.data.models.enums.NoteContext;
+import com.dayo.careround.roundservice.exception.NoteReviewMismatchException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,9 +71,20 @@ public class RoundPatientReviewService {
         reviewRepository.save(review);
     }
 
-    public void attachNote(UUID reviewId, UUID noteId) {
+    // Called when a note is committed with ?reviewId: the note must be this review's patient's ROUND note, and the
+    // review must still be open. A note for patient A can no longer satisfy patient B's review.
+    public void attachNote(UUID reviewId, Note note) {
         RoundPatientReview review = findOrThrow(reviewId);
-        review.setClinicalNoteId(noteId);
+        if (!review.getPatientId().equals(note.getPatientId())) {
+            throw new NoteReviewMismatchException("This note is for a different patient than the review");
+        }
+        if (note.getContext() != NoteContext.ROUND) {
+            throw new NoteReviewMismatchException("Only a ROUND note can satisfy a round review (this note is " + note.getContext() + ")");
+        }
+        if (review.getState() != RoundPatientReviewState.PENDING && review.getState() != RoundPatientReviewState.SUSPENDED) {
+            throw new NoteReviewMismatchException("This review is already " + review.getState());
+        }
+        review.setClinicalNoteId(note.getId());
         reviewRepository.save(review);
     }
 

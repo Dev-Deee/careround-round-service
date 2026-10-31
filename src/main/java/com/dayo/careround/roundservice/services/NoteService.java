@@ -70,7 +70,7 @@ public class NoteService {
         noteRepository.save(note);
 
         if (reviewId != null) {
-            reviewService.attachNote(reviewId, note.getId());
+            reviewService.attachNote(reviewId, note);
         }
 
         return toResponse(note);
