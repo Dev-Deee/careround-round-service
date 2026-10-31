@@ -14,6 +14,7 @@ import com.dayo.careround.roundservice.exception.NoteAlreadyCommittedException;
 import com.dayo.careround.roundservice.exception.NoteNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -42,12 +43,14 @@ public class NoteService {
     }
 
     @Transactional
-    public NoteResponse updateDraft(UUID noteId, UpdateNoteContentRequest request) {
+    public NoteResponse updateDraft(UUID noteId, UUID callerId, UpdateNoteContentRequest request) {
         Note note = findOrThrow(noteId);
 
         if (note.getStatus() == NoteStatus.COMMITTED) {
             throw new NoteAlreadyCommittedException("A committed note cannot be edited — add an addendum instead");
         }
+
+        requireAuthor(note, callerId);
 
         note.setContent(request.content());
         noteRepository.save(note);
@@ -59,12 +62,14 @@ public class NoteService {
      * attaches it as that review's clinicalNoteId — one of the three RESOLVED gates.
      */
     @Transactional
-    public NoteResponse commit(UUID noteId, UUID reviewId) {
+    public NoteResponse commit(UUID noteId, UUID callerId, UUID reviewId) {
         Note note = findOrThrow(noteId);
 
         if (note.getStatus() == NoteStatus.COMMITTED) {
             throw new NoteAlreadyCommittedException("This note is already committed");
         }
+
+        requireAuthor(note, callerId);
 
         note.setStatus(NoteStatus.COMMITTED);
         noteRepository.save(note);
@@ -93,8 +98,10 @@ public class NoteService {
         return toAddendumResponse(addendum);
     }
 
-    public List<NoteResponse> getByPatient(UUID patientId) {
+    // Committed notes are visible to staff; a DRAFT only to its author (FR-1.7, FR-5.6).
+    public List<NoteResponse> getByPatient(UUID patientId, UUID callerId) {
         return noteRepository.findByPatientId(patientId).stream()
+                .filter(note -> note.getStatus() == NoteStatus.COMMITTED || note.getAuthorId().equals(callerId))
                 .map(this::toResponse)
                 .toList();
     }
@@ -103,6 +110,13 @@ public class NoteService {
         return noteAddendumRepository.findByNoteId(noteId).stream()
                 .map(this::toAddendumResponse)
                 .toList();
+    }
+
+    // Drafts are personal: only the author edits or commits them, even across a round hand-off (FR-1.7).
+    private static void requireAuthor(Note note, UUID callerId) {
+        if (!note.getAuthorId().equals(callerId)) {
+            throw new AccessDeniedException("Only the author may edit or commit this draft");
+        }
     }
 
     private Note findOrThrow(UUID noteId) {
