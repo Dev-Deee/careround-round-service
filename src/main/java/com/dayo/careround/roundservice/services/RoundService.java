@@ -9,8 +9,10 @@ import com.dayo.careround.roundservice.data.repositories.RoundRepository;
 import com.dayo.careround.roundservice.dto.request.CreateRoundRequest;
 import com.dayo.careround.roundservice.dto.response.RoundResponse;
 import com.dayo.careround.roundservice.exception.PatientNotFoundException;
+import com.dayo.careround.roundservice.exception.WardNotFoundException;
 import com.dayo.careround.roundservice.exception.RoundNotFoundException;
 import com.dayo.careround.roundservice.grpc.PatientVerificationClient;
+import com.dayo.careround.roundservice.grpc.WardVerificationClient;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,9 +27,13 @@ public class RoundService {
     private final RoundRepository roundRepository;
     private final RoundPatientReviewRepository reviewRepository;
     private final PatientVerificationClient patientVerificationClient;
+    private final WardVerificationClient wardVerificationClient;
 
     @Transactional
     public RoundResponse create(CreateRoundRequest request) {
+        if (!wardVerificationClient.wardExists(request.wardId())) {
+            throw new WardNotFoundException("No ward with that id");
+        }
         for (UUID patientId : request.patientIds()) {
             if (!patientVerificationClient.patientExists(patientId)) {
                 throw new PatientNotFoundException("No patient with id " + patientId + " exists");
